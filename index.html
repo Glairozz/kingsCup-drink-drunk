@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>King's Cup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="setup-screen" class="screen">
+      <div class="setup-container">
+        <h1 class="logo">👑 King's Cup</h1>
+        <p class="subtitle">The classic party card game where every card changes the game</p>
+
+        <div class="setup-section">
+          <h2>Players</h2>
+          <div id="player-inputs">
+            <div class="player-input-row">
+              <input type="text" class="player-input" placeholder="Player name..." value="Player 1">
+              <button class="btn-remove" onclick="removePlayer(this)" title="Remove">✕</button>
+            </div>
+            <div class="player-input-row">
+              <input type="text" class="player-input" placeholder="Player name..." value="Player 2">
+              <button class="btn-remove" onclick="removePlayer(this)" title="Remove">✕</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="addPlayer()">+ Add Player</button>
+        </div>
+
+        <div class="setup-section">
+          <h2>House Rules</h2>
+          <div class="house-rules">
+            <label class="rule-checkbox"><input type="checkbox" value="No phones"> 🚫 No phones</label>
+            <label class="rule-checkbox"><input type="checkbox" value="No pointing"> 👉 No pointing</label>
+            <label class="rule-checkbox"><input type="checkbox" value="No first names"> 📛 No first names</label>
+            <label class="rule-checkbox"><input type="checkbox" value="No swearing"> 😂 No swearing</label>
+            <label class="rule-checkbox"><input type="checkbox" value="Pinky up while drinking"> ✋ Pinky up</label>
+            <label class="rule-checkbox"><input type="checkbox" value="Speak in an accent"> 🎭 Accent</label>
+            <label class="rule-checkbox"><input type="checkbox" value="No eye contact"> 👀 No eye contact</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-large" onclick="startGame()">Start Game</button>
+      </div>
+    </div>
+
+    <div id="game-screen" class="screen hidden">
+      <div class="game-header">
+        <div class="game-info">
+          <span id="king-counter">👑 0/4</span>
+          <span id="current-player-label">Turn: <strong id="turn-name">—</strong></span>
+        </div>
+        <div class="header-buttons">
+          <button class="btn btn-sm" onclick="showRulesModal()">📜 Rules</button>
+          <button class="btn btn-sm btn-danger" onclick="confirmEndGame()">End Game</button>
+        </div>
+      </div>
+
+      <div class="players-bar">
+        <div id="player-list"></div>
+      </div>
+
+      <div class="table" id="table">
+        <div class="cup" id="cup">
+          <div class="cup-fill" id="cup-fill"></div>
+          <span class="cup-label">King's Cup</span>
+        </div>
+        <div class="cards-circle" id="cards-circle"></div>
+      </div>
+
+      <div class="rules-bar" id="active-rules">
+        <span class="rules-label">Active Rules:</span>
+        <span id="rules-list">None</span>
+      </div>
+    </div>
+
+    <div id="overlay" class="overlay hidden">
+      <div class="overlay-content" id="overlay-content"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
