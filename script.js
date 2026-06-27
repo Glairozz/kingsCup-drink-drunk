@@ -133,6 +133,23 @@ function renderPlayers() {
   });
 }
 
+function getCircleRadius() {
+  const w = window.innerWidth;
+  if (w < 380) return 90;
+  if (w < 500) return 110;
+  if (w < 700) return 140;
+  if (w < 900) return 170;
+  return 210;
+}
+
+function getCardSize() {
+  const w = window.innerWidth;
+  if (w < 380) return { w: 40, h: 58 };
+  if (w < 500) return { w: 44, h: 64 };
+  if (w < 700) return { w: 55, h: 80 };
+  return { w: 70, h: 100 };
+}
+
 function renderCards() {
   const circle = document.getElementById('cards-circle');
   circle.innerHTML = '';
@@ -140,11 +157,12 @@ function renderCards() {
   const remaining = state.deck.length;
   if (remaining === 0) return;
 
-  const radius = Math.min(210, 150 + remaining * 3);
+  const maxRadius = getCircleRadius();
+  const cardSize = getCardSize();
+  const radius = Math.min(maxRadius, maxRadius * 0.5 + remaining * 2);
   const angleStep = (2 * Math.PI) / remaining;
   const offset = -Math.PI / 2;
 
-  // Center cup
   const cup = document.getElementById('cup');
 
   state.deck.forEach((card, i) => {
@@ -152,8 +170,10 @@ function renderCards() {
     el.className = 'card card-back';
     el.dataset.index = i;
     const angle = offset + i * angleStep;
-    const x = radius * Math.cos(angle) - 35;
-    const y = radius * Math.sin(angle) - 50;
+    const x = radius * Math.cos(angle) - cardSize.w / 2;
+    const y = radius * Math.sin(angle) - cardSize.h / 2;
+    el.style.width = cardSize.w + 'px';
+    el.style.height = cardSize.h + 'px';
     el.style.left = `calc(50% + ${x}px)`;
     el.style.top = `calc(50% + ${y}px)`;
     el.style.transform = `rotate(${angle + Math.PI / 2}rad)`;
@@ -166,6 +186,10 @@ function renderCards() {
   cup.style.top = '50%';
   cup.style.transform = 'translate(-50%, -50%)';
 }
+
+window.addEventListener('resize', () => {
+  if (state.gameActive) renderCards();
+});
 
 function renderCup() {
   const fill = document.getElementById('cup-fill');
