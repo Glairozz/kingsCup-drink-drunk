@@ -18,9 +18,7 @@ import {
   type Player, type Card as CardType, type GameState,
   CARD_RULES, HOUSE_RULES, createDeck, shuffle, isRed,
 } from '@/lib/game'
-import dynamic from 'next/dynamic'
-
-const GameCanvas = dynamic(() => import('@/components/GameCanvas').then(m => m.GameCanvas), { ssr: false })
+import { GameCanvas } from '@/components/GameCanvas'
 
 const INIT: GameState = {
   players: [], currentPlayerIndex: 0, deck: [], drawnCards: [],
