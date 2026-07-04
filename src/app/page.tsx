@@ -343,56 +343,17 @@ export default function Home() {
 
       <Dialog open={modal === 'card'} onOpenChange={o => { if (!o) onCardOk() }}>
         <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
-          {lastCard && lastRule && <div className="flex flex-col items-center text-center py-3">
-            <div className="relative flex items-center justify-center mb-3 w-full"
-              style={{ minHeight: 'clamp(100px, 32vw, 180px)' }}>
-              {[0, 1, 2, 3, 4].map(i => (
-                <div
-                  key={i}
-                  className="absolute rounded-lg border-2 border-[#a01a3a] shadow-md"
-                  style={{
-                    width: 'clamp(62px, 19vw, 96px)',
-                    height: 'clamp(88px, 27vw, 136px)',
-                    background: 'linear-gradient(135deg, #e94560, #c23152)',
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(-50%, -50%) rotate(${(i - 2) * 11}deg)`,
-                    transformOrigin: 'center bottom',
-                    zIndex: i + 1,
-                  }}
-                >
-                  <span className="flex items-center justify-center w-full h-full text-lg opacity-20 select-none"
-                    style={{ fontSize: 'clamp(0.8rem, 2.5vw, 1.3rem)' }}>
-                    👑
-                  </span>
-                </div>
-              ))}
-              <motion.div
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', duration: .6 }}
-                className={cn(
-                  'relative rounded-xl flex flex-col items-center justify-center shadow-xl z-10',
-                  isRed(lastCard.suit) ? 'bg-white text-red-600' : 'bg-white text-zinc-900',
-                )}
-                style={{
-                  width: 'clamp(78px, 24vw, 112px)',
-                  height: 'clamp(112px, 34vw, 160px)',
-                }}
-              >
-                <span className="font-bold leading-none"
-                  style={{ fontSize: 'clamp(1.1rem, 3.5vw, 1.8rem)' }}>
-                  {lastCard.rank}
-                </span>
-                <span className="leading-none mt-1"
-                  style={{ fontSize: 'clamp(0.9rem, 3vw, 1.5rem)' }}>
-                  {lastCard.suit}
-                </span>
-              </motion.div>
-            </div>
-            <h2 className="text-xl font-bold mb-1">{lastRule.emoji} {lastRule.title}</h2>
-            <p className="text-zinc-400 text-sm leading-relaxed px-1">{lastRule.desc}</p>
-            <Button onClick={onCardOk} className="mt-4 bg-[#e94560] hover:bg-[#d63851] text-white w-full">OK</Button>
+          {lastCard && lastRule && <div className="flex flex-col items-center text-center py-4">
+            <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', duration: .6 }}
+              className={cn('w-28 h-40 rounded-xl flex flex-col items-center justify-center shadow-xl mb-4',
+                isRed(lastCard.suit) ? 'bg-white text-red-600' : 'bg-white text-zinc-900')}>
+              <span className="text-3xl font-bold leading-none">{lastCard.rank}</span>
+              <span className="text-2xl leading-none mt-1">{lastCard.suit}</span>
+            </motion.div>
+            <h2 className="text-2xl font-bold mb-1">{lastRule.emoji} {lastRule.title}</h2>
+            <p className="text-zinc-400 text-sm leading-relaxed">{lastRule.desc}</p>
+            <Button onClick={onCardOk} className="mt-6 bg-[#e94560] hover:bg-[#d63851] text-white w-full">OK</Button>
           </div>}
         </DialogContent>
       </Dialog>
