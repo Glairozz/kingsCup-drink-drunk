@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion } from 'motion/react'
 import { Crown, Users, Swords, Trophy, X, Plus, Play, Star, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,6 +76,7 @@ export default function Home() {
   const [modal, setModal] = useState<'card'|'pick'|'rule'|'rules'|'end'|null>(null)
   const [pick, setPick] = useState<((id: number) => void) | null>(null)
   const [ruleText, setRuleText] = useState('')
+  const resolvedCardId = useRef<string | null>(null)
 
   const lastCard = s.drawnCards.length ? s.drawnCards[s.drawnCards.length - 1] : null
   const lastRule = lastCard ? CARD_RULES[lastCard.rank] : null
@@ -104,6 +105,8 @@ export default function Home() {
 
   function onCardOk() {
     if (!lastCard || cp?.id === undefined) return
+    if (resolvedCardId.current === lastCard.id) return
+    resolvedCardId.current = lastCard.id
     const id = cp.id
     switch (lastCard.rank) {
       case '2': setPick(() => (t: number) => { drink(t); next(); setModal(null) }); setModal('pick'); break
@@ -133,6 +136,16 @@ export default function Home() {
   function addRule(t: string) {
     if (t.trim()) { set(p => ({ ...p, activeRules: [...p.activeRules, t.trim()] })); toast(`📜 New rule: "${t.trim()}"`) }
     next(); setModal(null)
+  }
+
+  function resetGame() {
+    set(INIT)
+    setPhase('landing')
+    setNames(['Player 1', 'Player 2'])
+    setHr(new Set())
+    setModal(null)
+    setPick(null)
+    setRuleText('')
   }
 
   // ─── LANDING ───
@@ -354,7 +367,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={modal === 'rule'} onOpenChange={o => { if (!o) { addRule('') } }}>
+      <Dialog open={modal === 'rule'} onOpenChange={o => { if (!o) setModal(null) }}>
         <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-center">📜 Make a Rule</DialogTitle>
@@ -389,7 +402,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={modal === 'end'} onOpenChange={o => { if (!o) window.location.reload() }}>
+      <Dialog open={modal === 'end'} onOpenChange={o => { if (!o) { set(INIT); setPhase('landing'); setModal(null) } }}>
         <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
           <div className="flex flex-col items-center text-center py-4">
             <Trophy className="h-16 w-16 text-yellow-400 mb-2" />
@@ -404,7 +417,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <Button onClick={() => window.location.reload()} className="w-full bg-[#e94560] hover:bg-[#d63851] text-white">Play Again</Button>
+            <Button onClick={resetGame} className="w-full bg-[#e94560] hover:bg-[#d63851] text-white">Play Again</Button>
           </div>
         </DialogContent>
       </Dialog>

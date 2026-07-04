@@ -78,8 +78,10 @@ export function GameCanvas({ deck, cupFillPercent, onCardClick }: Props) {
         cards.map(({ card, index, style }) => (
           <motion.button
             key={card.id}
-            initial={false}
-            animate={{ x: 0, y: 0 }}
+            layout
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: index * 0.025, type: 'spring', stiffness: 180, damping: 18 }}
             whileHover={{ y: -14, scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => onCardClick(index)}
