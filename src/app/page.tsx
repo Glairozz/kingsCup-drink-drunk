@@ -77,6 +77,7 @@ export default function Home() {
   const [pick, setPick] = useState<((id: number) => void) | null>(null)
   const [ruleText, setRuleText] = useState('')
   const resolvedCardId = useRef<string | null>(null)
+  const ruleHandled = useRef(false)
 
   const lastCard = s.drawnCards.length ? s.drawnCards[s.drawnCards.length - 1] : null
   const lastRule = lastCard ? CARD_RULES[lastCard.rank] : null
@@ -119,7 +120,7 @@ export default function Home() {
           next(); setModal(null)
         })
         setModal('pick'); break
-      case 'J': setRuleText(''); setModal('rule'); break
+      case 'J': ruleHandled.current = false; setRuleText(''); setModal('rule'); break
       case 'K':
         if (s.kingsDrawn >= 4) {
           toast(`💀 ${cp.name} must drink the King's Cup!`)
@@ -134,6 +135,8 @@ export default function Home() {
   }
 
   function addRule(t: string) {
+    if (ruleHandled.current) return
+    ruleHandled.current = true
     if (t.trim()) { set(p => ({ ...p, activeRules: [...p.activeRules, t.trim()] })); toast(`📜 New rule: "${t.trim()}"`) }
     next(); setModal(null)
   }
@@ -367,7 +370,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={modal === 'rule'} onOpenChange={o => { if (!o) setModal(null) }}>
+      <Dialog open={modal === 'rule'} onOpenChange={o => { if (!o) { addRule('') } }}>
         <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-center">📜 Make a Rule</DialogTitle>
