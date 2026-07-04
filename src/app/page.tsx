@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { motion } from 'motion/react'
-import { Crown, Users, Swords, Trophy, X, Plus, Play } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { Crown, Users, Swords, Trophy, X, Plus, Play, Star, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,13 +20,56 @@ import {
 } from '@/lib/game'
 import { GameCanvas } from '@/components/GameCanvas'
 
+const SUITS = ['♠', '♥', '♦', '♣']
+
 const INIT: GameState = {
   players: [], currentPlayerIndex: 0, deck: [], drawnCards: [],
   kingsDrawn: 0, cupFillPercent: 0, activeRules: [], mates: {},
   turnNumber: 0, gameActive: false,
 }
 
+function FloatingSuits() {
+  const items = useRef(
+    Array.from({ length: 12 }, (_, i) => ({
+      suit: SUITS[i % 4],
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: 14 + Math.random() * 24,
+      delay: Math.random() * 5,
+      duration: 12 + Math.random() * 18,
+      drift: -20 + Math.random() * 40,
+    })),
+  )
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+      {items.current.map((item, i) => (
+        <motion.span
+          key={i}
+          className="absolute text-white/5 font-bold"
+          style={{ left: `${item.x}%`, top: `${item.y}%`, fontSize: item.size }}
+          animate={{
+            y: [0, -30, 0, 20, 0],
+            x: [0, item.drift, 0, -item.drift * 0.5, 0],
+            rotate: [0, 10, -5, 8, 0],
+            opacity: [0.04, 0.08, 0.04, 0.07, 0.04],
+          }}
+          transition={{
+            duration: item.duration,
+            repeat: Infinity,
+            delay: item.delay,
+            ease: 'easeInOut',
+          }}
+        >
+          {item.suit}
+        </motion.span>
+      ))}
+    </div>
+  )
+}
+
 export default function Home() {
+  const [phase, setPhase] = useState<'landing' | 'setup' | 'game'>('landing')
   const [s, set] = useState<GameState>(INIT)
   const [names, setNames] = useState(['Player 1', 'Player 2'])
   const [hr, setHr] = useState<Set<string>>(new Set())
@@ -63,11 +106,8 @@ export default function Home() {
     if (!lastCard || cp?.id === undefined) return
     const id = cp.id
     switch (lastCard.rank) {
-      case '2':
-        setPick(() => (t: number) => { drink(t); next(); setModal(null) })
-        setModal('pick'); break
-      case '3':
-        drink(id); next(); setModal(null); break
+      case '2': setPick(() => (t: number) => { drink(t); next(); setModal(null) }); setModal('pick'); break
+      case '3': drink(id); next(); setModal(null); break
       case '8':
         setPick(() => (t: number) => {
           if (t === id) return
@@ -76,8 +116,7 @@ export default function Home() {
           next(); setModal(null)
         })
         setModal('pick'); break
-      case 'J':
-        setRuleText(''); setModal('rule'); break
+      case 'J': setRuleText(''); setModal('rule'); break
       case 'K':
         if (s.kingsDrawn >= 4) {
           toast(`💀 ${cp.name} must drink the King's Cup!`)
@@ -96,15 +135,104 @@ export default function Home() {
     next(); setModal(null)
   }
 
+  // ─── LANDING ───
+  if (phase === 'landing') {
+    return (
+      <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#0a0a1a] via-[#1a1a2e] to-[#0d1a0d]">
+        <FloatingSuits />
+
+        {/* Gradient orbs */}
+        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-[#e94560]/10 blur-[120px]" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-[#d4a017]/10 blur-[120px]" />
+
+        <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-2xl">
+          {/* Crown */}
+          <motion.div
+            initial={{ scale: 0, rotate: -30 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            className="mb-6"
+          >
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-yellow-300/20 to-yellow-600/20 border border-yellow-400/30 flex items-center justify-center shadow-xl shadow-yellow-400/10">
+              <Crown className="w-12 h-12 text-yellow-400" />
+            </div>
+          </motion.div>
+
+          {/* Title */}
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="text-5xl md:text-7xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-white via-yellow-200 to-yellow-400 bg-clip-text text-transparent"
+          >
+            King's Cup
+          </motion.h1>
+
+          {/* Tagline */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5 }}
+            className="text-lg md:text-xl text-zinc-400 mb-8 max-w-md"
+          >
+            The classic party card game where every card changes the game
+          </motion.p>
+
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            <Button
+              size="lg"
+              onClick={() => setPhase('setup')}
+              className="relative group h-14 px-10 text-lg font-bold bg-gradient-to-r from-[#e94560] to-[#d63851] hover:from-[#d63851] hover:to-[#c23152] text-white rounded-full shadow-2xl shadow-[#e94560]/30 hover:shadow-[#e94560]/50 transition-all duration-300"
+            >
+              <Sparkles className="w-5 h-5 mr-2 text-yellow-200" />
+              Start Game
+              <motion.span
+                className="absolute inset-0 rounded-full bg-white/10"
+                initial={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.2, opacity: 0 }}
+                transition={{ duration: 0.6 }}
+              />
+            </Button>
+          </motion.div>
+
+          {/* Features */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.5 }}
+            className="mt-12 flex flex-wrap justify-center gap-6 text-sm text-zinc-500"
+          >
+            <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-500/60" /> 2–10+ Players</span>
+            <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-500/60" /> 52 Cards</span>
+            <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-500/60" /> 13 Unique Rules</span>
+            <span className="flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-500/60" /> 20–60 Min</span>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
   // ─── SETUP ───
-  if (!s.players.length) {
+  if (phase === 'setup') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[#1a1a2e]">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }} className="w-full max-w-lg">
-          <Card className="border-0 shadow-2xl bg-[#16213e] text-white">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-lg"
+        >
+          <Card className="border-0 shadow-2xl bg-[#16213e]/95 backdrop-blur-xl text-white">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-4xl">👑 King's Cup</CardTitle>
-              <CardDescription className="text-zinc-400 text-base">The classic party card game where every card changes the game</CardDescription>
+              <CardTitle className="text-3xl flex items-center justify-center gap-2">
+                <Crown className="w-6 h-6 text-yellow-400" /> King's Cup
+              </CardTitle>
+              <CardDescription className="text-zinc-400 text-base">Set up your game</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-3">
@@ -134,9 +262,18 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-              <Button size="lg" disabled={names.filter(x => x.trim()).length < 2}
-                onClick={() => set({ ...INIT, players: names.filter(x => x.trim()).map((name, i) => ({ id: i, name: name.trim(), drinkCount: 0 })), deck: shuffle(createDeck()), activeRules: [...hr], gameActive: true })}
-                className="w-full bg-[#e94560] hover:bg-[#d63851] text-white font-bold text-lg h-12 disabled:opacity-40"><Play className="h-5 w-5 mr-2" /> Start Game</Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setPhase('landing')}
+                  className="flex-1 border-[#2a2a4a] text-zinc-400 hover:text-white hover:bg-[#2a2a4a]">Back</Button>
+                <Button size="lg" disabled={names.filter(x => x.trim()).length < 2}
+                  onClick={() => {
+                    set({ ...INIT, players: names.filter(x => x.trim()).map((name, i) => ({ id: i, name: name.trim(), drinkCount: 0 })), deck: shuffle(createDeck()), activeRules: [...hr], gameActive: true })
+                    setPhase('game')
+                  }}
+                  className="flex-1 bg-[#e94560] hover:bg-[#d63851] text-white font-bold text-lg h-12 disabled:opacity-40">
+                  <Play className="h-5 w-5 mr-2" /> Start Game
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -147,7 +284,7 @@ export default function Home() {
   // ─── GAME ───
   return (
     <div className="min-h-screen flex flex-col bg-[#1a1a2e]">
-      <header className="flex items-center justify-between px-4 py-2.5 bg-[#16213e] border-b border-[#2a2a4a]">
+      <header className="flex items-center justify-between px-4 py-2.5 bg-[#16213e]/90 backdrop-blur-sm border-b border-[#2a2a4a]">
         <div className="flex items-center gap-4 text-sm text-zinc-400">
           <span className="flex items-center gap-1"><Crown className="h-4 w-4 text-yellow-400" /> {s.kingsDrawn}/4</span>
           <span>Turn: <strong className="text-white">{cp?.name}</strong></span>
@@ -159,27 +296,29 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Player chips */}
-      <div className="flex gap-2 flex-wrap px-4 py-2 bg-[#0f3460]">
+      <div className="flex gap-2 flex-wrap px-4 py-2 bg-[#0f3460]/80 backdrop-blur-sm">
         {s.players.map((p, i) => {
           const active = i === s.currentPlayerIndex && s.gameActive
           const partner = s.mates[p.id] !== undefined || Object.values(s.mates).includes(p.id)
           return (
-            <span key={p.id} className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors',
-              active && 'bg-[#e94560] text-white shadow-lg shadow-[#e94560]/30',
-              !active && partner && 'bg-[#4a3a8a] text-white',
-              !active && !partner && 'bg-[#1a1a4a] text-zinc-300')}>
+            <motion.span
+              key={p.id}
+              animate={active ? { scale: [1, 1.05, 1] } : undefined}
+              transition={active ? { repeat: Infinity, duration: 1.5 } : undefined}
+              className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors',
+                active && 'bg-[#e94560] text-white shadow-lg shadow-[#e94560]/30',
+                !active && partner && 'bg-[#4a3a8a] text-white',
+                !active && !partner && 'bg-[#1a1a4a] text-zinc-300')}
+            >
               {p.name}<span className={cn('text-xs font-bold', active ? 'text-white/80' : 'text-[#e94560]')}>{p.drinkCount}×</span>
-            </span>
+            </motion.span>
           )
         })}
       </div>
 
-      {/* Phaser canvas */}
       <GameCanvas deck={s.deck} cupFillPercent={s.cupFillPercent} onCardClick={draw} />
 
-      {/* Rules bar */}
-      <footer className="px-4 py-2 bg-[#16213e] border-t border-[#2a2a4a] text-xs text-zinc-500 flex items-center gap-2">
+      <footer className="px-4 py-2 bg-[#16213e]/90 backdrop-blur-sm border-t border-[#2a2a4a] text-xs text-zinc-500 flex items-center gap-2">
         <span className="font-semibold text-zinc-400">Rules:</span>
         <span className="truncate">{s.activeRules.length ? s.activeRules.map(r => `• ${r}`).join('  ') : 'None'}</span>
       </footer>
