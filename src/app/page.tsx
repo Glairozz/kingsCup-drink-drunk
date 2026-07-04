@@ -1,0 +1,278 @@
+'use client'
+
+import { useState, useCallback, useEffect } from 'react'
+import { motion } from 'motion/react'
+import { Crown, Users, Swords, Trophy, X, Plus, Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog'
+import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import {
+  type Player, type Card as CardType, type GameState,
+  CARD_RULES, HOUSE_RULES, createDeck, shuffle, isRed,
+} from '@/lib/game'
+import dynamic from 'next/dynamic'
+
+const GameCanvas = dynamic(() => import('@/components/GameCanvas').then(m => m.GameCanvas), { ssr: false })
+
+const INIT: GameState = {
+  players: [], currentPlayerIndex: 0, deck: [], drawnCards: [],
+  kingsDrawn: 0, cupFillPercent: 0, activeRules: [], mates: {},
+  turnNumber: 0, gameActive: false,
+}
+
+export default function Home() {
+  const [s, set] = useState<GameState>(INIT)
+  const [names, setNames] = useState(['Player 1', 'Player 2'])
+  const [hr, setHr] = useState<Set<string>>(new Set())
+  const [modal, setModal] = useState<'card'|'pick'|'rule'|'rules'|'end'|null>(null)
+  const [pick, setPick] = useState<((id: number) => void) | null>(null)
+  const [ruleText, setRuleText] = useState('')
+
+  const lastCard = s.drawnCards.length ? s.drawnCards[s.drawnCards.length - 1] : null
+  const lastRule = lastCard ? CARD_RULES[lastCard.rank] : null
+  const cp = s.players[s.currentPlayerIndex] ?? null
+  const sorted = [...s.players].sort((a, b) => b.drinkCount - a.drinkCount)
+
+  useEffect(() => { if (lastCard) setModal('card') }, [s.turnNumber])
+
+  const drink = useCallback((id: number) => set(p => {
+    const pl = p.players.map(x => x.id === id ? { ...x, drinkCount: x.drinkCount + 1 } : x)
+    const mi = p.mates[id]
+    if (mi !== undefined) { const i = pl.findIndex(x => x.id === mi); if (i !== -1) pl[i] = { ...pl[i], drinkCount: pl[i].drinkCount + 1 } }
+    return { ...p, players: pl }
+  }), [])
+
+  const next = useCallback(() => set(p => ({ ...p, currentPlayerIndex: (p.currentPlayerIndex + 1) % p.players.length })), [])
+
+  const draw = useCallback((i: number) => set(p => {
+    if (!p.gameActive) return p
+    const d = [...p.deck]; const c = d[i]; if (!c) return p
+    d.splice(i, 1)
+    let k = p.kingsDrawn, cup = p.cupFillPercent
+    if (c.rank === 'K') { k++; cup = Math.min(100, cup + Math.random() * 15 + 5) }
+    return { ...p, deck: d, drawnCards: [...p.drawnCards, c], turnNumber: p.turnNumber + 1, kingsDrawn: k, cupFillPercent: cup }
+  }), [])
+
+  function onCardOk() {
+    if (!lastCard || cp?.id === undefined) return
+    const id = cp.id
+    switch (lastCard.rank) {
+      case '2':
+        setPick(() => (t: number) => { drink(t); next(); setModal(null) })
+        setModal('pick'); break
+      case '3':
+        drink(id); next(); setModal(null); break
+      case '8':
+        setPick(() => (t: number) => {
+          if (t === id) return
+          set(p => ({ ...p, mates: { ...p.mates, [id]: t, [t]: id } }))
+          toast(`${s.players.find(x => x.id === id)?.name} and ${s.players.find(x => x.id === t)?.name} are now drinking partners!`)
+          next(); setModal(null)
+        })
+        setModal('pick'); break
+      case 'J':
+        setRuleText(''); setModal('rule'); break
+      case 'K':
+        if (s.kingsDrawn >= 4) {
+          toast(`💀 ${cp.name} must drink the King's Cup!`)
+          drink(id)
+          setTimeout(() => { set(p => ({ ...p, gameActive: false })); setModal('end') }, 2000)
+        } else {
+          toast(`${cp.name} pours into the King's Cup! (King ${s.kingsDrawn}/4)`)
+          next(); setModal(null)
+        } break
+      default: next(); setModal(null)
+    }
+  }
+
+  function addRule(t: string) {
+    if (t.trim()) { set(p => ({ ...p, activeRules: [...p.activeRules, t.trim()] })); toast(`📜 New rule: "${t.trim()}"`) }
+    next(); setModal(null)
+  }
+
+  // ─── SETUP ───
+  if (!s.players.length) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#1a1a2e]">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }} className="w-full max-w-lg">
+          <Card className="border-0 shadow-2xl bg-[#16213e] text-white">
+            <CardHeader className="text-center pb-2">
+              <CardTitle className="text-4xl">👑 King's Cup</CardTitle>
+              <CardDescription className="text-zinc-400 text-base">The classic party card game where every card changes the game</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-2"><Users className="h-4 w-4" /> Players</h3>
+                <div className="space-y-2">
+                  {names.map((n, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input value={n} onChange={e => setNames(p => p.map((x, j) => j === i ? e.target.value : x))}
+                        placeholder="Player name..." className="flex-1 bg-[#0f3460] border-[#2a2a4a] text-white placeholder:text-zinc-500 focus-visible:ring-[#e94560]" />
+                      <Button variant="ghost" size="icon" onClick={() => names.length > 2 && setNames(p => p.filter((_, j) => j !== i))}
+                        disabled={names.length <= 2} className="text-[#e94560] hover:text-[#e94560] hover:bg-[#e94560]/10 shrink-0"><X className="h-4 w-4" /></Button>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" onClick={() => setNames(p => [...p, `Player ${p.length + 1}`])}
+                  className="w-full border-[#2a2a4a] text-zinc-400 hover:text-white hover:bg-[#2a2a4a]"><Plus className="h-4 w-4 mr-2" /> Add Player</Button>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-2"><Swords className="h-4 w-4" /> House Rules</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {HOUSE_RULES.map(r => (
+                    <Label key={r.label} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors text-sm ${hr.has(r.label) ? 'bg-[#e94560]/20 text-white' : 'bg-[#1a1a4a] text-zinc-400 hover:bg-[#2a2a4a]'}`}>
+                      <input type="checkbox" checked={hr.has(r.label)} onChange={() => setHr(p => { const n = new Set(p); n.has(r.label) ? n.delete(r.label) : n.add(r.label); return n })}
+                        className="sr-only" />
+                      <span>{r.emoji}</span><span>{r.label}</span>
+                    </Label>
+                  ))}
+                </div>
+              </div>
+              <Button size="lg" disabled={names.filter(x => x.trim()).length < 2}
+                onClick={() => set({ ...INIT, players: names.filter(x => x.trim()).map((name, i) => ({ id: i, name: name.trim(), drinkCount: 0 })), deck: shuffle(createDeck()), activeRules: [...hr], gameActive: true })}
+                className="w-full bg-[#e94560] hover:bg-[#d63851] text-white font-bold text-lg h-12 disabled:opacity-40"><Play className="h-5 w-5 mr-2" /> Start Game</Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // ─── GAME ───
+  return (
+    <div className="min-h-screen flex flex-col bg-[#1a1a2e]">
+      <header className="flex items-center justify-between px-4 py-2.5 bg-[#16213e] border-b border-[#2a2a4a]">
+        <div className="flex items-center gap-4 text-sm text-zinc-400">
+          <span className="flex items-center gap-1"><Crown className="h-4 w-4 text-yellow-400" /> {s.kingsDrawn}/4</span>
+          <span>Turn: <strong className="text-white">{cp?.name}</strong></span>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setModal('rules')} className="text-zinc-400 hover:text-white hover:bg-[#2a2a4a]">📜 Rules</Button>
+          <Button variant="ghost" size="sm" onClick={() => { set(p => ({ ...p, gameActive: false })); setModal('end') }}
+            className="text-zinc-400 hover:text-[#e94560] hover:bg-[#e94560]/10">End Game</Button>
+        </div>
+      </header>
+
+      {/* Player chips */}
+      <div className="flex gap-2 flex-wrap px-4 py-2 bg-[#0f3460]">
+        {s.players.map((p, i) => {
+          const active = i === s.currentPlayerIndex && s.gameActive
+          const partner = s.mates[p.id] !== undefined || Object.values(s.mates).includes(p.id)
+          return (
+            <span key={p.id} className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors',
+              active && 'bg-[#e94560] text-white shadow-lg shadow-[#e94560]/30',
+              !active && partner && 'bg-[#4a3a8a] text-white',
+              !active && !partner && 'bg-[#1a1a4a] text-zinc-300')}>
+              {p.name}<span className={cn('text-xs font-bold', active ? 'text-white/80' : 'text-[#e94560]')}>{p.drinkCount}×</span>
+            </span>
+          )
+        })}
+      </div>
+
+      {/* Phaser canvas */}
+      <GameCanvas deck={s.deck} cupFillPercent={s.cupFillPercent} onCardClick={draw} />
+
+      {/* Rules bar */}
+      <footer className="px-4 py-2 bg-[#16213e] border-t border-[#2a2a4a] text-xs text-zinc-500 flex items-center gap-2">
+        <span className="font-semibold text-zinc-400">Rules:</span>
+        <span className="truncate">{s.activeRules.length ? s.activeRules.map(r => `• ${r}`).join('  ') : 'None'}</span>
+      </footer>
+
+      {/* ─── MODALS ─── */}
+
+      <Dialog open={modal === 'card'} onOpenChange={o => { if (!o) onCardOk() }}>
+        <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
+          {lastCard && lastRule && <div className="flex flex-col items-center text-center py-4">
+            <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', duration: .6 }}
+              className={cn('w-28 h-40 rounded-xl flex flex-col items-center justify-center shadow-xl mb-4',
+                isRed(lastCard.suit) ? 'bg-white text-red-600' : 'bg-white text-zinc-900')}>
+              <span className="text-3xl font-bold leading-none">{lastCard.rank}</span>
+              <span className="text-2xl leading-none mt-1">{lastCard.suit}</span>
+            </motion.div>
+            <h2 className="text-2xl font-bold mb-1">{lastRule.emoji} {lastRule.title}</h2>
+            <p className="text-zinc-400 text-sm leading-relaxed">{lastRule.desc}</p>
+            <Button onClick={onCardOk} className="mt-6 bg-[#e94560] hover:bg-[#d63851] text-white w-full">OK</Button>
+          </div>}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modal === 'pick'} onOpenChange={o => { if (!o) setModal(null) }}>
+        <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
+          <DialogHeader><DialogTitle className="text-center">{lastCard?.rank === '8' ? 'Choose your drinking partner!' : 'Who should drink?'}</DialogTitle></DialogHeader>
+          <div className="flex flex-col gap-2">
+            {s.players.map(p => (
+              <Button key={p.id} variant="outline" onClick={() => pick?.(p.id)}
+                className="border-[#2a2a4a] text-zinc-300 hover:bg-[#2a2a4a] hover:text-white">{p.name}</Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modal === 'rule'} onOpenChange={o => { if (!o) { addRule('') } }}>
+        <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">📜 Make a Rule</DialogTitle>
+            <DialogDescription className="text-zinc-400 text-center">Create a new rule everyone must follow for the rest of the game.</DialogDescription>
+          </DialogHeader>
+          <Textarea value={ruleText} onChange={e => setRuleText(e.target.value)}
+            placeholder="No pointing, drink with left hand..." autoFocus
+            className="bg-[#0f3460] border-[#2a2a4a] text-white placeholder:text-zinc-500 min-h-20 focus-visible:ring-[#e94560]" />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { setRuleText(''); addRule('') }}
+              className="flex-1 border-[#2a2a4a] text-zinc-400 hover:bg-[#2a2a4a] hover:text-white">Skip</Button>
+            <Button onClick={() => addRule(ruleText)} className="flex-1 bg-[#e94560] hover:bg-[#d63851] text-white">Add Rule</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modal === 'rules'} onOpenChange={o => { if (!o) setModal(null) }}>
+        <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
+          <DialogHeader><DialogTitle className="text-center">📜 Active Rules</DialogTitle></DialogHeader>
+          {!s.activeRules.length ? <p className="text-center text-zinc-500 py-4">No active rules.</p> : (
+            <div className="space-y-2">
+              {s.activeRules.map((r, i) => (
+                <div key={i} className="flex items-center justify-between bg-[#1a1a4a] rounded-lg px-3 py-2 text-sm text-zinc-300">
+                  <span>{r}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-[#e94560] hover:text-[#e94560] hover:bg-[#e94560]/10"
+                    onClick={() => set(p => ({ ...p, activeRules: p.activeRules.filter((_, j) => j !== i) }))}><X className="h-3 w-3" /></Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="outline" onClick={() => setModal(null)} className="w-full border-[#2a2a4a] text-zinc-400 hover:bg-[#2a2a4a] hover:text-white">Close</Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={modal === 'end'} onOpenChange={o => { if (!o) window.location.reload() }}>
+        <DialogContent className="bg-[#16213e] text-white border-[#2a2a4a] sm:max-w-sm">
+          <div className="flex flex-col items-center text-center py-4">
+            <Trophy className="h-16 w-16 text-yellow-400 mb-2" />
+            <h2 className="text-2xl font-bold mb-1">Game Over!</h2>
+            <p className="text-zinc-400 mb-4">{sorted[0]?.name} drinks the most! 🎉</p>
+            <div className="w-full space-y-2 text-left mb-6">
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Final Scores</h3>
+              {sorted.map((p, i) => (
+                <div key={p.id} className="flex items-center justify-between bg-[#1a1a4a] rounded-lg px-3 py-2 text-sm">
+                  <span className="flex items-center gap-2"><span>{i === 0 ? '👑' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>{p.name}</span>
+                  <span className="text-[#e94560] font-bold">{p.drinkCount} drinks</span>
+                </div>
+              ))}
+            </div>
+            <Button onClick={() => window.location.reload()} className="w-full bg-[#e94560] hover:bg-[#d63851] text-white">Play Again</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster position="bottom-center" />
+    </div>
+  )
+}
